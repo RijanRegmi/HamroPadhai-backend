@@ -10,16 +10,12 @@ import authRoutes from "./routes/auth.route";
 
 const app: Application = express();
 
-/* =======================
-   MIDDLEWARES
-======================= */
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/* =======================
-   ROUTES
-======================= */
+
 app.use("/api/auth", authRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
@@ -29,9 +25,7 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-/* =======================
-   SERVER START
-======================= */
+
 const startServer = async () => {
   try {
     await connectDatabase();
