@@ -3,6 +3,7 @@ dotenv.config();
 
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
+import path from "path";
 
 import { connectDatabase } from "./database/mongodb";
 import { PORT } from "./config";
@@ -10,11 +11,17 @@ import authRoutes from "./routes/auth.route";
 
 const app: Application = express();
 
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.use("/api/auth", authRoutes);
 
@@ -25,16 +32,15 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-
 const startServer = async () => {
   try {
     await connectDatabase();
 
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running at http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Server failed to start");
+    console.error("Server failed to start");
     console.error(error);
     process.exit(1);
   }
