@@ -2,13 +2,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Create uploads directory if it doesn't exist
 const uploadDir = path.join(__dirname, "../../uploads/profiles");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -22,9 +20,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter with better logging
 const fileFilter = (req: any, file: any, cb: any) => {
-  // Log the file details for debugging
   console.log("File received:", {
     fieldname: file.fieldname,
     originalname: file.originalname,
@@ -38,9 +34,10 @@ const fileFilter = (req: any, file: any, cb: any) => {
     "image/png",
     "image/gif",
     "image/webp",
+    "image/avif",
   ];
   
-  const allowedExtensions = /jpeg|jpg|png|gif|webp/;
+  const allowedExtensions = /jpeg|jpg|png|gif|webp|avif/;
   
   const extname = allowedExtensions.test(
     path.extname(file.originalname).toLowerCase()
@@ -48,10 +45,10 @@ const fileFilter = (req: any, file: any, cb: any) => {
   const mimetype = allowedMimeTypes.includes(file.mimetype);
 
   if (mimetype && extname) {
-    console.log("✅ File validation passed");
+    console.log("File validation passed");
     return cb(null, true);
   } else {
-    console.log("❌ File validation failed:", {
+    console.log("File validation failed:", {
       mimetype: file.mimetype,
       extname: path.extname(file.originalname),
       mimetypeValid: mimetype,
@@ -68,7 +65,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
 export const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: fileFilter,
 });

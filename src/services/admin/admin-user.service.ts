@@ -1,14 +1,12 @@
-import { RegisterDTO, LoginDTO, UpdateProfileDTO } from "../dtos/user.dto";
-import { UserRepository } from "../repositories/user.repository";
+import { CreateUserByAdminDTO, UpdateUserByAdminDTO } from "../../dtos/admin/admin-user.dto";
+import { UserRepository } from "../../repositories/user.repository";
 import bcryptjs from "bcryptjs";
-import { HttpError } from "../errors/http.error";
-import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "../config";
+import { HttpError } from "../../errors/http.error";
 
 const userRepository = new UserRepository();
 
-export class UserService {
-  async register(data: RegisterDTO) {
+export class AdminUserService {
+  async createUser(data: CreateUserByAdminDTO & { profileImage?: string }) {
     const usernameExists = await userRepository.getUserByUsername(data.username);
     if (usernameExists) {
       throw new HttpError(409, "Username already exists");
@@ -33,59 +31,26 @@ export class UserService {
       phone: data.phone,
       password: hashedPassword,
       gender: data.gender,
+      role: data.role || "user",
+      about: data.about || "",
+      address: data.address || "",
+      parentContact: data.parentContact || "",
       classId: data.classId || null,
       sectionId: data.sectionId || null,
     };
+
+    if (data.profileImage) {
+      userData.profileImage = data.profileImage;
+    }
 
     const user = await userRepository.createUser(userData);
 
     return user;
   }
 
-  async login(data: LoginDTO) {
-    const user = await userRepository.getUserByUsername(data.username);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
-
-    const valid = await bcryptjs.compare(data.password, user.password);
-    if (!valid) {
-      throw new HttpError(401, "Invalid credentials");
-    }
-
-    const tokenExpiry = data.rememberMe ? "30d" : "7d";
-
-    const token = jwt.sign(
-      {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
-      JWT_SECRET,
-      { expiresIn: tokenExpiry }
-    );
-    
-    const userWithoutPassword = {
-      _id: user._id,
-      fullName: user.fullName,
-      username: user.username,
-      email: user.email,
-      phone: user.phone,
-      gender: user.gender,
-      role: user.role,
-      profileImage: user.profileImage,
-      about: user.about || "",
-      address: user.address || "",
-      parentContact: user.parentContact || "",
-      classId: user.classId,
-      sectionId: user.sectionId,
-    };
-
-    return { 
-      token, 
-      user: userWithoutPassword 
-    };
+  async getAllUsers() {
+    const users = await userRepository.getAllUsers();
+    return users;
   }
 
   async getUserById(userId: string) {
@@ -96,23 +61,27 @@ export class UserService {
     return user;
   }
 
-  async updateProfileImage(userId: string, imageUrl: string) {
-    const user = await userRepository.updateProfileImage(userId, imageUrl);
-    if (!user) {
+  async updateUser(userId: string, data: UpdateUserByAdminDTO & { profileImage?: string }) {
+    const existingUser = await userRepository.getUserById(userId);
+    if (!existingUser) {
       throw new HttpError(404, "User not found");
     }
-    return user;
-  }
 
-  async updateProfile(userId: string, data: UpdateProfileDTO) {
-    if (data.email) {
+    if (data.username && data.username !== existingUser.username) {
+      const usernameTaken = await userRepository.isUsernameTakenByOther(data.username, userId);
+      if (usernameTaken) {
+        throw new HttpError(409, "Username already exists");
+      }
+    }
+
+    if (data.email && data.email !== existingUser.email) {
       const emailTaken = await userRepository.isEmailTakenByOther(data.email, userId);
       if (emailTaken) {
         throw new HttpError(409, "Email already exists");
       }
     }
 
-    if (data.phone) {
+    if (data.phone && data.phone !== existingUser.phone) {
       const phoneTaken = await userRepository.isPhoneTakenByOther(data.phone, userId);
       if (phoneTaken) {
         throw new HttpError(409, "Phone number already exists");
@@ -120,14 +89,24 @@ export class UserService {
     }
 
     const updateData: any = {};
-    
+
     if (data.fullName) updateData.fullName = data.fullName;
+    if (data.username) updateData.username = data.username;
     if (data.email) updateData.email = data.email;
     if (data.phone) updateData.phone = data.phone;
     if (data.gender) updateData.gender = data.gender;
+    if (data.role) updateData.role = data.role;
     if (data.about !== undefined) updateData.about = data.about;
     if (data.address !== undefined) updateData.address = data.address;
     if (data.parentContact !== undefined) updateData.parentContact = data.parentContact;
+
+    if (data.password) {
+      updateData.password = await bcryptjs.hash(data.password, 10);
+    }
+
+    if (data.profileImage) {
+      updateData.profileImage = data.profileImage;
+    }
 
     if (data.classId !== undefined) {
       updateData.classId = data.classId || null;
@@ -142,6 +121,22 @@ export class UserService {
       throw new HttpError(404, "User not found");
     }
 
+    return user;
+  }
+
+  async deleteUser(userId: string) {
+    const user = await userRepository.deleteUser(userId);
+    if (!user) {
+      throw new HttpError(404, "User not found");
+    }
+    return user;
+  }
+
+  async updateUserProfileImage(userId: string, imageUrl: string) {
+    const user = await userRepository.updateProfileImage(userId, imageUrl);
+    if (!user) {
+      throw new HttpError(404, "User not found");
+    }
     return user;
   }
 }

@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { UserType } from "../types/user.type";
+import { UserTypeWithObjectId } from "../types/user.type";
 
-const UserSchema: Schema = new Schema<UserType>(
+const UserSchema: Schema = new Schema<UserTypeWithObjectId>(
   {
     fullName: { type: String, required: true },
     username: { type: String, required: true, unique: true },
@@ -15,12 +15,30 @@ const UserSchema: Schema = new Schema<UserType>(
       default: "user",
     },
     profileImage: { type: String, default: null },
+    about: { type: String, default: "" },
+    address: { type: String, default: "" },
+    parentContact: { type: String, default: "" },
+    classId: { type: String, default: null }, 
+    sectionId: { type: String, default: null }, 
   },
   { timestamps: true }
 );
 
-export interface IUser extends UserType, Document {
+export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
+  fullName: string;
+  username: string;
+  email: string;
+  phone: string;
+  password: string;
+  gender: "male" | "female";
+  role: "user" | "admin";
+  profileImage: string | null;
+  about: string;
+  address: string;
+  parentContact: string;
+  classId: string | null;
+  sectionId: string | null; 
   createdAt: Date;
   updatedAt: Date;
 }

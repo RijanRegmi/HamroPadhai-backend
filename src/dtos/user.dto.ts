@@ -7,12 +7,28 @@ export const registerDTO = z.object({
   phone: z.string().min(10),
   password: z.string().min(6),
   gender: z.enum(["male", "female"]),
+  classId: z.string().optional(), // NEW: Optional class assignment
+  sectionId: z.string().optional(), // NEW: Optional section assignment
 });
 
 export const loginDTO = z.object({
   username: z.string().min(3),
   password: z.string().min(6),
+  rememberMe: z.boolean().optional(), 
+});
+
+export const updateProfileDTO = z.object({
+  fullName: z.string().min(3).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().min(10).optional(),
+  gender: z.enum(["male", "female"]).optional(),
+  about: z.string().optional(),
+  address: z.string().optional(),
+  parentContact: z.string().optional(),
+  classId: z.string().optional(), // NEW: Optional class assignment
+  sectionId: z.string().optional(), // NEW: Optional section assignment
 });
 
 export type RegisterDTO = z.infer<typeof registerDTO>;
 export type LoginDTO = z.infer<typeof loginDTO>;
+export type UpdateProfileDTO = z.infer<typeof updateProfileDTO>;

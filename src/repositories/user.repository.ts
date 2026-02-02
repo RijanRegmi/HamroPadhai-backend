@@ -29,4 +29,36 @@ export class UserRepository {
       { new: true }
     );
   }
+
+  async updateUserProfile(userId: string, data: Partial<IUser>): Promise<IUser | null> {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      { $set: data },
+      { new: true, runValidators: true }
+    );
+  }
+
+  async isEmailTakenByOther(email: string, userId: string): Promise<boolean> {
+    const user = await UserModel.findOne({ email, _id: { $ne: userId } });
+    return !!user;
+  }
+
+  async isPhoneTakenByOther(phone: string, userId: string): Promise<boolean> {
+    const user = await UserModel.findOne({ phone, _id: { $ne: userId } });
+    return !!user;
+  }
+
+  // NEW: Admin methods
+  async getAllUsers(): Promise<IUser[]> {
+    return UserModel.find().select("-password");
+  }
+
+  async deleteUser(userId: string): Promise<IUser | null> {
+    return UserModel.findByIdAndDelete(userId);
+  }
+
+  async isUsernameTakenByOther(username: string, userId: string): Promise<boolean> {
+    const user = await UserModel.findOne({ username, _id: { $ne: userId } });
+    return !!user;
+  }
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/user.service";
-import { registerDTO, loginDTO } from "../dtos/user.dto";
+import { registerDTO, loginDTO, updateProfileDTO } from "../dtos/user.dto";
 import { ZodError } from "zod";
 
 const userService = new UserService();
@@ -33,6 +33,9 @@ export class AuthController {
           gender: user.gender,
           role: user.role,
           profileImage: user.profileImage,
+          about: user.about,
+          address: user.address,
+          parentContact: user.parentContact,
         },
       });
     } catch (error: any) {
@@ -73,6 +76,9 @@ export class AuthController {
             gender: result.user.gender,
             role: result.user.role,
             profileImage: result.user.profileImage,
+            about: result.user.about,
+            address: result.user.address,
+            parentContact: result.user.parentContact,
           },
         },
       });
@@ -115,6 +121,9 @@ export class AuthController {
           gender: user.gender,
           role: user.role,
           profileImage: user.profileImage,
+          about: user.about,
+          address: user.address,
+          parentContact: user.parentContact,
         },
       });
     } catch (error: any) {
@@ -165,6 +174,126 @@ export class AuthController {
       return res.status(500).json({
         success: false,
         message: error.message || "Failed to upload profile image",
+      });
+    }
+  }
+
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      const parsed = updateProfileDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: parsed.error.issues.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      }
+
+      const user = await userService.updateProfile(userId, parsed.data);
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: {
+          _id: user._id,
+          fullName: user.fullName,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          gender: user.gender,
+          role: user.role,
+          profileImage: user.profileImage,
+          about: user.about,
+          address: user.address,
+          parentContact: user.parentContact,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error in updateProfile:", error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Failed to update profile",
+      });
+    }
+  }
+
+  // NEW: PUT /api/auth/:id - Update any user profile with optional image (for logged-in user)
+  async updateUserById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const loggedInUserId = (req as any).user?.id;
+
+      if (!loggedInUserId) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      // Users can only update their own profile
+      if (loggedInUserId !== id) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden - You can only update your own profile",
+        });
+      }
+
+      const parsed = updateProfileDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: parsed.error.issues.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      }
+
+      // Update data
+      const updateData: any = { ...parsed.data };
+
+      // Add profile image if uploaded
+      if (req.file) {
+        updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+      }
+
+      const user = await userService.updateProfile(id, updateData);
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: {
+          _id: user._id,
+          fullName: user.fullName,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          gender: user.gender,
+          role: user.role,
+          profileImage: user.profileImage,
+          about: user.about,
+          address: user.address,
+          parentContact: user.parentContact,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error in updateUserById:", error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Failed to update profile",
       });
     }
   }

@@ -9,6 +9,13 @@ export const UserSchema = z.object({
   gender: z.enum(["male", "female"]),
   role: z.enum(["user", "admin"]).default("user"),
   profileImage: z.string().optional().nullable(),
+  about: z.string().optional(),
+  address: z.string().optional(),
+  parentContact: z.string().optional(),
+  classId: z.string().optional().nullable(), 
+  sectionId: z.string().optional().nullable(), 
 });
 
 export type UserType = z.infer<typeof UserSchema>;
+
+export type UserTypeWithObjectId = UserType;
