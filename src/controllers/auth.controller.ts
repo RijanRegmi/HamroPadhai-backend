@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/user.service";
-import { registerDTO, loginDTO, updateProfileDTO } from "../dtos/user.dto";
+import { registerDTO, loginDTO, updateProfileDTO, forgotPasswordDTO, resetPasswordDTO } from "../dtos/user.dto";
 import { ZodError } from "zod";
 
 const userService = new UserService();
@@ -229,7 +229,6 @@ export class AuthController {
     }
   }
 
-  // NEW: PUT /api/auth/:id - Update any user profile with optional image (for logged-in user)
   async updateUserById(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -242,7 +241,6 @@ export class AuthController {
         });
       }
 
-      // Users can only update their own profile
       if (loggedInUserId !== id) {
         return res.status(403).json({
           success: false,
@@ -262,10 +260,8 @@ export class AuthController {
         });
       }
 
-      // Update data
       const updateData: any = { ...parsed.data };
 
-      // Add profile image if uploaded
       if (req.file) {
         updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
       }
@@ -294,6 +290,97 @@ export class AuthController {
       return res.status(error.statusCode || 500).json({
         success: false,
         message: error.message || "Failed to update profile",
+      });
+    }
+  }
+
+  // Forgot Password - Send Verification Code
+  async forgotPassword(req: Request, res: Response) {
+    try {
+      const parsed = forgotPasswordDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: parsed.error.issues.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      }
+
+      const result = await userService.sendPasswordResetCode(parsed.data);
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error: any) {
+      console.error("Error in forgotPassword:", error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Failed to send verification code",
+      });
+    }
+  }
+
+  // ============================================
+  // NEW METHOD: Verify Code
+  // ============================================
+  async verifyCode(req: Request, res: Response) {
+    try {
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and code are required",
+        });
+      }
+
+      // Verify the code through service
+      await userService.verifyResetCode(email, code);
+
+      return res.status(200).json({
+        success: true,
+        message: "Code verified successfully",
+      });
+    } catch (error: any) {
+      console.error("Error in verifyCode:", error);
+      return res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message || "Failed to verify code",
+      });
+    }
+  }
+  // ============================================
+
+  // Reset Password with Verification Code
+  async resetPassword(req: Request, res: Response) {
+    try {
+      const parsed = resetPasswordDTO.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: parsed.error.issues.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      }
+
+      const result = await userService.resetPassword(parsed.data);
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error: any) {
+      console.error("Error in resetPassword:", error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Failed to reset password",
       });
     }
   }

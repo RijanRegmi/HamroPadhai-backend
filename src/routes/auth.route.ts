@@ -33,8 +33,16 @@ const handleMulterUpload = (req: Request, res: Response, next: NextFunction) => 
   });
 };
 
+// Public routes
 router.post("/register", controller.register.bind(controller));
 router.post("/login", controller.login.bind(controller));
+
+// Password Reset Routes
+router.post("/forgot-password", controller.forgotPassword.bind(controller));
+router.post("/verify-code", controller.verifyCode.bind(controller)); // NEW: Add this line
+router.post("/reset-password", controller.resetPassword.bind(controller));
+
+// Protected routes (require authentication)
 router.get("/profile", authMiddleware, controller.getProfile.bind(controller));
 
 router.post(
@@ -46,7 +54,6 @@ router.post(
 
 router.put("/profile", authMiddleware, controller.updateProfile.bind(controller));
 
-// NEW: PUT /api/auth/:id - Update user profile by ID with optional image upload
 router.put(
   "/:id",
   authMiddleware,

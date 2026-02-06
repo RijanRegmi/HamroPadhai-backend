@@ -48,7 +48,7 @@ export class UserRepository {
     return !!user;
   }
 
-  // NEW: Admin methods
+  // Admin methods
   async getAllUsers(): Promise<IUser[]> {
     return UserModel.find().select("-password");
   }
@@ -60,5 +60,44 @@ export class UserRepository {
   async isUsernameTakenByOther(username: string, userId: string): Promise<boolean> {
     const user = await UserModel.findOne({ username, _id: { $ne: userId } });
     return !!user;
+  }
+
+  // NEW: Password Reset Methods
+  async setResetPasswordCode(userId: string, code: string, expiresAt: Date): Promise<IUser | null> {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      { 
+        resetPasswordCode: code,
+        resetPasswordExpires: expiresAt
+      },
+      { new: true }
+    );
+  }
+
+  async getUserByResetCode(email: string, code: string): Promise<IUser | null> {
+    return UserModel.findOne({
+      email,
+      resetPasswordCode: code,
+      resetPasswordExpires: { $gt: new Date() } // Code must not be expired
+    });
+  }
+
+  async clearResetPasswordCode(userId: string): Promise<IUser | null> {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      { 
+        resetPasswordCode: null,
+        resetPasswordExpires: null
+      },
+      { new: true }
+    );
+  }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<IUser | null> {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      { password: hashedPassword },
+      { new: true }
+    );
   }
 }

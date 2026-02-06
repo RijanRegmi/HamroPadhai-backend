@@ -13,7 +13,9 @@ export const UserSchema = z.object({
   address: z.string().optional(),
   parentContact: z.string().optional(),
   classId: z.string().optional().nullable(), 
-  sectionId: z.string().optional().nullable(), 
+  sectionId: z.string().optional().nullable(),
+  resetPasswordCode: z.string().optional().nullable(),
+  resetPasswordExpires: z.date().optional().nullable(),
 });
 
 export type UserType = z.infer<typeof UserSchema>;
