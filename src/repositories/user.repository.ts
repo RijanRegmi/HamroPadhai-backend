@@ -62,7 +62,7 @@ export class UserRepository {
     return !!user;
   }
 
-  // NEW: Password Reset Methods
+  // Password Reset Methods
   async setResetPasswordCode(userId: string, code: string, expiresAt: Date): Promise<IUser | null> {
     return UserModel.findByIdAndUpdate(
       userId,
@@ -99,5 +99,29 @@ export class UserRepository {
       { password: hashedPassword },
       { new: true }
     );
+  }
+
+  // NEW: Teacher-specific query methods
+  async getUsersByRole(role: "user" | "admin" | "teacher"): Promise<IUser[]> {
+    return UserModel.find({ role }).select("-password");
+  }
+
+  async searchUsers(searchTerm: string): Promise<IUser[]> {
+    return UserModel.find({
+      $or: [
+        { fullName: { $regex: searchTerm, $options: "i" } },
+        { username: { $regex: searchTerm, $options: "i" } },
+        { email: { $regex: searchTerm, $options: "i" } },
+        { phone: { $regex: searchTerm, $options: "i" } },
+      ],
+    }).select("-password");
+  }
+
+  async getUsersByClass(classId: string): Promise<IUser[]> {
+    return UserModel.find({ classId }).select("-password");
+  }
+
+  async getUsersBySection(sectionId: string): Promise<IUser[]> {
+    return UserModel.find({ sectionId }).select("-password");
   }
 }

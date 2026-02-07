@@ -8,12 +8,12 @@ export const createUserByAdminDTO = z.object({
   phone: z.string().min(10),
   password: z.string().min(6),
   gender: z.enum(["male", "female"]),
-  role: z.enum(["user", "admin"]).optional().default("user"),
+  role: z.enum(["user", "admin", "teacher"]).optional().default("user"), // Added teacher role
   about: z.string().optional(),
   address: z.string().optional(),
   parentContact: z.string().optional(),
-  classId: z.string().optional(), // NEW: Added classId
-  sectionId: z.string().optional(), // NEW: Added sectionId
+  classId: z.string().optional(),
+  sectionId: z.string().optional(), 
 });
 
 // For updating user by admin (all fields optional)
@@ -24,12 +24,12 @@ export const updateUserByAdminDTO = z.object({
   phone: z.string().min(10).optional(),
   password: z.string().min(6).optional(),
   gender: z.enum(["male", "female"]).optional(),
-  role: z.enum(["user", "admin"]).optional(),
+  role: z.enum(["user", "admin", "teacher"]).optional(), // Added teacher role
   about: z.string().optional(),
   address: z.string().optional(),
   parentContact: z.string().optional(),
-  classId: z.string().optional(), // NEW: Added classId
-  sectionId: z.string().optional(), // NEW: Added sectionId
+  classId: z.string().optional(), 
+  sectionId: z.string().optional(), 
 });
 
 export type CreateUserByAdminDTO = z.infer<typeof createUserByAdminDTO>;

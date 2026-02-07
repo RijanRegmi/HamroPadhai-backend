@@ -9,7 +9,7 @@ export interface IUser extends Document {
   phone: string;
   password: string;
   gender: "male" | "female";
-  role: "user" | "admin";
+  role: "user" | "admin" | "teacher"; // Added teacher role
   profileImage: string | null;
   about: string;
   address: string;
@@ -32,7 +32,7 @@ const UserSchema: Schema<IUser> = new Schema(
     gender: { type: String, enum: ["male", "female"], required: true },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "teacher"], // Added teacher role
       default: "user",
     },
     profileImage: { type: String, default: null },
