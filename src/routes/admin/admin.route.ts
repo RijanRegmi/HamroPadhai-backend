@@ -4,6 +4,7 @@ import { authMiddleware } from "../../middlewares/auth.middleware";
 import { adminMiddleware } from "../../middlewares/admin/admin.middleware";
 import { upload } from "../../middlewares/upload.middleware";
 import multer from "multer";
+import adminRoutineRoutes from "./admin-routine.route";
 
 const router = Router();
 const controller = new AdminUserController();
@@ -31,6 +32,9 @@ const handleMulterUpload = (req: Request, res: Response, next: NextFunction) => 
     next();
   });
 };
+
+// Mount routine routes
+router.use("/", adminRoutineRoutes);
 
 // All routes require auth + admin
 // POST /api/admin/users - Create user (with optional image upload)

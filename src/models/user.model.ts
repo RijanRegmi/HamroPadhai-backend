@@ -9,13 +9,15 @@ export interface IUser extends Document {
   phone: string;
   password: string;
   gender: "male" | "female";
-  role: "user" | "admin" | "teacher"; // Added teacher role
+  role: "user" | "admin" | "teacher";
   profileImage: string | null;
   about: string;
   address: string;
   parentContact: string;
+  // For students: single values
+  // For teachers: arrays stored as strings (e.g., '["11","12"]')
   classId: string | null;
-  sectionId: string | null; 
+  sectionId: string | null;
   resetPasswordCode: string | null;
   resetPasswordExpires: Date | null;
   createdAt: Date;
@@ -32,13 +34,14 @@ const UserSchema: Schema<IUser> = new Schema(
     gender: { type: String, enum: ["male", "female"], required: true },
     role: {
       type: String,
-      enum: ["user", "admin", "teacher"], // Added teacher role
+      enum: ["user", "admin", "teacher"],
       default: "user",
     },
     profileImage: { type: String, default: null },
     about: { type: String, default: "" },
     address: { type: String, default: "" },
     parentContact: { type: String, default: "" },
+    // Can store either: "11" (student) or '["11","12"]' (teacher)
     classId: { type: String, default: null }, 
     sectionId: { type: String, default: null },
     
