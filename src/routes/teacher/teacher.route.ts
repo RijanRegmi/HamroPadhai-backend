@@ -3,12 +3,16 @@ import { TeacherUserController } from "./../../controllers/teacher/teacher-user.
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { teacherMiddleware } from "../../middlewares/teacher/teacher.middleware";
 import teacherRoutineRoutes from "./teacher-routine.route";
+import teacherAssignmentRoutes from "./teacher-assignment.route"; // ✅ ADD THIS IMPORT
 
 const router = Router();
 const controller = new TeacherUserController();
 
 // Mount routine routes
 router.use("/", teacherRoutineRoutes);
+
+// ✅ ADD THIS LINE - Mount assignment routes
+router.use("/assignments", teacherAssignmentRoutes);
 
 // All routes require auth + teacher role
 

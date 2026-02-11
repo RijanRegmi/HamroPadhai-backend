@@ -124,4 +124,11 @@ export class UserRepository {
   async getUsersBySection(sectionId: string): Promise<IUser[]> {
     return UserModel.find({ sectionId }).select("-password");
   }
+  
+  async getUsersByClassAndSection(classId: string, sectionId: string) {
+  return UserModel.find({
+    classId: classId,
+    sectionId: sectionId,
+  }).select("-password");
+}
 }
