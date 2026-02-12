@@ -1,179 +1,120 @@
 import { AssignmentModel, IAssignment, ISubmission } from "../models/assignment.model";
 import mongoose from "mongoose";
 
+// Populate helper - used in all queries
+const POPULATE_TEACHERS = { path: "assignedTeacherIds", select: "fullName username email" };
+const POPULATE_CREATOR  = { path: "createdBy", select: "fullName username email" };
+const POPULATE_GRADER   = { path: "submissions.gradedBy", select: "fullName username" };
+
 export class AssignmentRepository {
-  // ==================== ADMIN OPERATIONS ====================
-  
-  // Create assignment
+  // ==================== ADMIN ====================
+
   async createAssignment(data: Partial<IAssignment>): Promise<IAssignment> {
     const assignment = new AssignmentModel(data);
     const saved = await assignment.save();
-    
-    // Populate after creation
     return AssignmentModel.findById(saved._id)
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
-      .populate("submissions.gradedBy", "fullName username") as Promise<IAssignment>;
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
+      .populate(POPULATE_GRADER) as Promise<IAssignment>;
   }
 
-  // Get all assignments
+  // Active assignments only (for admin listing)
   async getAllAssignments(): Promise<IAssignment[]> {
     return AssignmentModel.find()
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
-      .populate("submissions.gradedBy", "fullName username")
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
+      .populate(POPULATE_GRADER)
       .sort({ createdAt: -1 });
   }
 
-  // Get assignment by ID
-  async getAssignmentById(assignmentId: string): Promise<IAssignment | null> {
-    return AssignmentModel.findById(assignmentId)
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
-      .populate("submissions.gradedBy", "fullName username");
+  // ✅ NEW: Unfiltered - used by teacher service to filter by assignedTeacherIds
+  async getAllAssignmentsUnfiltered(): Promise<IAssignment[]> {
+    return AssignmentModel.find()
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
+      .populate(POPULATE_GRADER)
+      .sort({ createdAt: -1 });
   }
 
-  // Update assignment
-  async updateAssignment(
-    assignmentId: string,
-    data: Partial<IAssignment>
-  ): Promise<IAssignment | null> {
+  async getAssignmentById(assignmentId: string): Promise<IAssignment | null> {
+    return AssignmentModel.findById(assignmentId)
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
+      .populate(POPULATE_GRADER);
+  }
+
+  async updateAssignment(assignmentId: string, data: Partial<IAssignment>): Promise<IAssignment | null> {
     return AssignmentModel.findByIdAndUpdate(
       assignmentId,
       { $set: data },
       { new: true, runValidators: true }
     )
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
-      .populate("submissions.gradedBy", "fullName username");
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
+      .populate(POPULATE_GRADER);
   }
 
-  // Delete assignment
   async deleteAssignment(assignmentId: string): Promise<IAssignment | null> {
     return AssignmentModel.findByIdAndDelete(assignmentId);
   }
 
-  // Get assignments by class and section
-  async getAssignmentsByClassAndSection(
-    classId: string,
-    sectionId: string
-  ): Promise<IAssignment[]> {
+  async getAssignmentsByClassAndSection(classId: string, sectionId: string): Promise<IAssignment[]> {
     return AssignmentModel.find({ classId, sectionId })
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
       .sort({ createdAt: -1 });
   }
 
-  // Get assignments by subject
   async getAssignmentsBySubject(subject: string): Promise<IAssignment[]> {
     return AssignmentModel.find({ subject })
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
       .sort({ createdAt: -1 });
   }
 
-  // ==================== STUDENT OPERATIONS ====================
+  // ==================== STUDENT ====================
 
-  // Get assignments for student (by their class and section)
-  async getAssignmentsForStudent(
-    classId: string,
-    sectionId: string
-  ): Promise<IAssignment[]> {
-    return AssignmentModel.find({
-      classId,
-      sectionId,
-      isActive: true,
-    })
-      .populate("createdBy", "fullName username")
-      .populate("assignedTeacherId", "fullName username") // NEW
+  async getAssignmentsForStudent(classId: string, sectionId: string): Promise<IAssignment[]> {
+    return AssignmentModel.find({ classId, sectionId, isActive: true })
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
       .sort({ dueDate: 1 });
   }
 
-  // Submit assignment
-  async submitAssignment(
-    assignmentId: string,
-    submission: Partial<ISubmission>
-  ): Promise<IAssignment | null> {
+  async submitAssignment(assignmentId: string, submission: Partial<ISubmission>): Promise<IAssignment | null> {
     return AssignmentModel.findByIdAndUpdate(
       assignmentId,
-      {
-        $push: {
-          submissions: {
-            ...submission,
-            submittedAt: new Date(),
-          },
-        },
-      },
+      { $push: { submissions: { ...submission, submittedAt: new Date() } } },
       { new: true }
     );
   }
 
-  // Update submission (resubmit)
-  async updateSubmission(
-    assignmentId: string,
-    studentId: string,
-    submission: Partial<ISubmission>
-  ): Promise<IAssignment | null> {
+  async updateSubmission(assignmentId: string, studentId: string, submission: Partial<ISubmission>): Promise<IAssignment | null> {
     return AssignmentModel.findOneAndUpdate(
-      {
-        _id: assignmentId,
-        "submissions.studentId": studentId,
-      },
-      {
-        $set: {
-          "submissions.$.files": submission.files,
+      { _id: assignmentId, "submissions.studentId": studentId },
+      { $set: {
+          "submissions.$.files":       submission.files,
           "submissions.$.textContent": submission.textContent,
           "submissions.$.submittedAt": new Date(),
-        },
+        }
       },
       { new: true }
     );
   }
 
-  // Get student's submission for an assignment
-  async getStudentSubmission(
-    assignmentId: string,
-    studentId: string
-  ): Promise<ISubmission | null> {
+  async getStudentSubmission(assignmentId: string, studentId: string): Promise<ISubmission | null> {
     const assignment = await AssignmentModel.findById(assignmentId);
     if (!assignment) return null;
-
-    const submission = assignment.submissions.find(
-      (sub) => sub.studentId.toString() === studentId
-    );
-    return submission || null;
+    return assignment.submissions.find((s) => s.studentId.toString() === studentId) || null;
   }
 
-  // Check if student has submitted
-  async hasStudentSubmitted(
-    assignmentId: string,
-    studentId: string
-  ): Promise<boolean> {
-    const assignment = await AssignmentModel.findOne({
-      _id: assignmentId,
-      "submissions.studentId": studentId,
-    });
-    return !!assignment;
+  async hasStudentSubmitted(assignmentId: string, studentId: string): Promise<boolean> {
+    const result = await AssignmentModel.findOne({ _id: assignmentId, "submissions.studentId": studentId });
+    return !!result;
   }
 
-  // ==================== TEACHER OPERATIONS ====================
+  // ==================== TEACHER ====================
 
-  // Get assignments where teacher teaches that class/section
-  async getAssignmentsForTeacher(
-    classIds: string[],
-    sectionIds: string[]
-  ): Promise<IAssignment[]> {
-    return AssignmentModel.find({
-      classId: { $in: classIds },
-      sectionId: { $in: sectionIds },
-      isActive: true,
-    })
-      .populate("createdBy", "fullName username")
-      .populate("assignedTeacherId", "fullName username") // NEW
-      .sort({ createdAt: -1 });
-  }
-
-  // Grade submission
   async gradeSubmission(
     assignmentId: string,
     studentId: string,
@@ -182,79 +123,47 @@ export class AssignmentRepository {
     gradedBy: string
   ): Promise<IAssignment | null> {
     return AssignmentModel.findOneAndUpdate(
-      {
-        _id: assignmentId,
-        "submissions.studentId": studentId,
-      },
-      {
-        $set: {
-          "submissions.$.marks": marks,
+      { _id: assignmentId, "submissions.studentId": studentId },
+      { $set: {
+          "submissions.$.marks":    marks,
           "submissions.$.feedback": feedback,
           "submissions.$.gradedBy": new mongoose.Types.ObjectId(gradedBy),
           "submissions.$.gradedAt": new Date(),
-        },
+        }
       },
       { new: true }
-    ).populate("submissions.gradedBy", "fullName username");
+    ).populate(POPULATE_GRADER);
   }
 
-  // Get all submissions for an assignment
   async getSubmissions(assignmentId: string): Promise<ISubmission[]> {
     const assignment = await AssignmentModel.findById(assignmentId);
     return assignment?.submissions || [];
   }
 
-  // Get submission statistics
   async getSubmissionStats(assignmentId: string) {
     const assignment = await AssignmentModel.findById(assignmentId);
     if (!assignment) return null;
-
-    const totalSubmissions = assignment.submissions.length;
-    const gradedSubmissions = assignment.submissions.filter(
-      (sub) => sub.marks !== null && sub.marks !== undefined
-    ).length;
-    const pendingGrading = totalSubmissions - gradedSubmissions;
-
-    return {
-      totalSubmissions,
-      gradedSubmissions,
-      pendingGrading,
-    };
+    const total   = assignment.submissions.length;
+    const graded  = assignment.submissions.filter((s) => s.marks !== null && s.marks !== undefined).length;
+    return { totalSubmissions: total, gradedSubmissions: graded, pendingGrading: total - graded };
   }
 
-  // ==================== QUERY OPERATIONS ====================
+  // ==================== QUERY ====================
 
-  // Search assignments
-  async searchAssignments(query: any): Promise<IAssignment[]> {
-    return AssignmentModel.find(query)
-      .populate("createdBy", "fullName username email")
-      .populate("assignedTeacherId", "fullName username email classId sectionId") // NEW
-      .sort({ createdAt: -1 });
-  }
-
-  // Get overdue assignments
   async getOverdueAssignments(): Promise<IAssignment[]> {
-    return AssignmentModel.find({
-      dueDate: { $lt: new Date() },
-      isActive: true,
-    })
-      .populate("createdBy", "fullName username")
-      .populate("assignedTeacherId", "fullName username") // NEW
+    return AssignmentModel.find({ dueDate: { $lt: new Date() }, isActive: true })
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
       .sort({ dueDate: -1 });
   }
 
-  // Get upcoming assignments
-  async getUpcomingAssignments(days: number = 7): Promise<IAssignment[]> {
-    const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(today.getDate() + days);
-
-    return AssignmentModel.find({
-      dueDate: { $gte: today, $lte: futureDate },
-      isActive: true,
-    })
-      .populate("createdBy", "fullName username")
-      .populate("assignedTeacherId", "fullName username") // NEW
+  async getUpcomingAssignments(days = 7): Promise<IAssignment[]> {
+    const today  = new Date();
+    const future = new Date();
+    future.setDate(today.getDate() + days);
+    return AssignmentModel.find({ dueDate: { $gte: today, $lte: future }, isActive: true })
+      .populate(POPULATE_CREATOR)
+      .populate(POPULATE_TEACHERS)
       .sort({ dueDate: 1 });
   }
 }

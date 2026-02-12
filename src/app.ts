@@ -7,9 +7,12 @@ import path from "path";
 
 import authRoutes from "./routes/auth.route";
 import adminRoutes from "./routes/admin/admin.route";
+import adminNoticeRoutes from "./routes/admin/admin-notice.route";
 import teacherRoutes from "./routes/teacher/teacher.route";
+import teacherNoticeRoutes from "./routes/teacher/teacher-notice.route"; // ✅ ADD THIS
+import studentNoticeRoutes from "./routes/student/student-notice.route";
 import routineRoutes from "./routes/routine.route";
-import studentAssignmentRoutes from "./routes/student/student-assignment.route"; 
+import studentAssignmentRoutes from "./routes/student/student-assignment.route";
 
 const app: Application = express();
 
@@ -27,9 +30,12 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminNoticeRoutes);
 app.use("/api/teacher", teacherRoutes);
+app.use("/api/teacher", teacherNoticeRoutes); // ✅ ADD THIS LINE
+app.use("/api/notices", studentNoticeRoutes);
 app.use("/api/routines", routineRoutes);
-app.use("/api/assignments", studentAssignmentRoutes); 
+app.use("/api/assignments", studentAssignmentRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
