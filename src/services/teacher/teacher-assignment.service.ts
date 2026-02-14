@@ -31,19 +31,33 @@ function teacherTeachesClassSection(
   return pairs.some(p => p.classId === classId && p.sections.includes(sectionId));
 }
 
-// ✅ BACKWARD-COMPATIBLE:
-// - New assignments (assignedTeacherIds populated): check the array
-// - Old assignments (assignedTeacherIds empty):     fall back to class/section match
+// ✅ FIXED: Robust ID comparison handling ObjectId objects, strings, and nested {_id} shapes
+function normalizeId(id: any): string {
+  if (!id) return "";
+  // Handle populated objects like { _id: ObjectId(...) }
+  if (typeof id === "object" && id._id) return id._id.toString();
+  return id.toString();
+}
+
 function canTeacherAccess(
   assignment: any,
   teacherId: string,
   pairs: Array<{ classId: string; sections: string[] }>
 ): boolean {
   const ids: any[] = assignment.assignedTeacherIds || [];
+
+  console.log(`🔍 canTeacherAccess: assignedTeacherIds=${JSON.stringify(ids.map(normalizeId))} teacherId=${teacherId}`);
+
   if (ids.length > 0) {
-    return ids.some((id: any) => id.toString() === teacherId.toString());
+    const match = ids.some((id: any) => normalizeId(id) === teacherId.toString());
+    console.log(`   → assignedTeacherIds check: ${match}`);
+    return match;
   }
-  return teacherTeachesClassSection(pairs, assignment.classId, assignment.sectionId);
+
+  // Fallback for old assignments without assignedTeacherIds
+  const fallback = teacherTeachesClassSection(pairs, assignment.classId, assignment.sectionId);
+  console.log(`   → fallback class/section check: ${fallback}`);
+  return fallback;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -57,6 +71,8 @@ export class TeacherAssignmentService {
     const pairs = parseTeacherAssignments(teacher);
     const now   = new Date();
     const all   = await assignmentRepository.getAllAssignmentsUnfiltered();
+
+    console.log(`📋 Teacher ${teacher.fullName} - checking ${all.length} assignments`);
 
     return all.filter(a =>
       canTeacherAccess(a, teacherId, pairs) && new Date(a.dueDate) >= now
