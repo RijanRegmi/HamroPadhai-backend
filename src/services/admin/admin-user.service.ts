@@ -1,142 +1,307 @@
-import { CreateUserByAdminDTO, UpdateUserByAdminDTO } from "../../dtos/admin/admin-user.dto";
-import { UserRepository } from "../../repositories/user.repository";
-import bcryptjs from "bcryptjs";
-import { HttpError } from "../../errors/http.error";
+import request from "supertest";
+import app from "../../app";
+import { UserModel } from "../../models/user.model";
 
-const userRepository = new UserRepository();
+// Mock sendEmail so no real emails fire
+jest.mock("../../config/email", () => ({
+  sendEmail: jest.fn().mockResolvedValue(true),
+}));
 
-export class AdminUserService {
-  async createUser(data: CreateUserByAdminDTO & { profileImage?: string }) {
-    const usernameExists = await userRepository.getUserByUsername(data.username);
-    if (usernameExists) {
-      throw new HttpError(409, "Username already exists");
-    }
+describe("Auth Integration Tests", () => {
+  const testUser = {
+    fullName: "Integration User",
+    username: "integrationuser",
+    email: "integration@example.com",
+    phone: "9800999888",
+    password: "Password123!",
+    gender: "male",
+  };
 
-    const emailExists = await userRepository.getUserByEmail(data.email);
-    if (emailExists) {
-      throw new HttpError(409, "Email already exists");
-    }
+  let authToken: string;
 
-    const phoneExists = await userRepository.getUserByPhone(data.phone);
-    if (phoneExists) {
-      throw new HttpError(409, "Phone number already exists");
-    }
+  beforeAll(async () => {
+    await UserModel.deleteMany({
+      $or: [{ email: testUser.email }, { username: testUser.username }],
+    });
+  });
 
-    const hashedPassword = await bcryptjs.hash(data.password, 10);
+  afterAll(async () => {
+    await UserModel.deleteMany({
+      $or: [{ email: testUser.email }, { username: testUser.username }],
+    });
+  });
 
-    const userData: any = {
-      fullName: data.fullName,
-      username: data.username,
-      email: data.email,
-      phone: data.phone,
-      password: hashedPassword,
-      gender: data.gender,
-      role: data.role || "user",
-      about: data.about || "",
-      address: data.address || "",
-      parentContact: data.parentContact || "",
-      classId: data.classId || null,
-      sectionId: data.sectionId || null,
-    };
+  // ─── POST /api/auth/register ───────────────────────────────────────────────
+  describe("POST /api/auth/register", () => {
+    test("should register a new user successfully", async () => {
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send(testUser);
 
-    if (data.profileImage) {
-      userData.profileImage = data.profileImage;
-    }
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty("username", testUser.username);
+      expect(res.body.data).toHaveProperty("email", testUser.email);
+      expect(res.body.data).not.toHaveProperty("password");
+    });
 
-    const user = await userRepository.createUser(userData);
+    test("should return 409 for duplicate username", async () => {
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send({ ...testUser, email: "new@test.com", phone: "9811111111" });
 
-    return user;
-  }
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/Username already exists/i);
+    });
 
-  async getAllUsers() {
-    const users = await userRepository.getAllUsers();
-    return users;
-  }
+    test("should return 409 for duplicate email", async () => {
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send({ ...testUser, username: "newuser", phone: "9811111112" });
 
-  async getUserById(userId: string) {
-    const user = await userRepository.getUserById(userId);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
-    return user;
-  }
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/Email already exists/i);
+    });
 
-  async updateUser(userId: string, data: UpdateUserByAdminDTO & { profileImage?: string }) {
-    const existingUser = await userRepository.getUserById(userId);
-    if (!existingUser) {
-      throw new HttpError(404, "User not found");
-    }
+    test("should return 409 for duplicate phone", async () => {
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send({ ...testUser, username: "newuser2", email: "new2@test.com" });
 
-    if (data.username && data.username !== existingUser.username) {
-      const usernameTaken = await userRepository.isUsernameTakenByOther(data.username, userId);
-      if (usernameTaken) {
-        throw new HttpError(409, "Username already exists");
-      }
-    }
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/Phone number already exists/i);
+    });
 
-    if (data.email && data.email !== existingUser.email) {
-      const emailTaken = await userRepository.isEmailTakenByOther(data.email, userId);
-      if (emailTaken) {
-        throw new HttpError(409, "Email already exists");
-      }
-    }
+    test("should return 400 for missing required fields", async () => {
+      const res = await request(app)
+        .post("/api/auth/register")
+        .send({ username: "incomplete" }); // missing fields
 
-    if (data.phone && data.phone !== existingUser.phone) {
-      const phoneTaken = await userRepository.isPhoneTakenByOther(data.phone, userId);
-      if (phoneTaken) {
-        throw new HttpError(409, "Phone number already exists");
-      }
-    }
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
 
-    const updateData: any = {};
+  // ─── POST /api/auth/login ──────────────────────────────────────────────────
+  describe("POST /api/auth/login", () => {
+    test("should login successfully with correct credentials", async () => {
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({ username: testUser.username, password: testUser.password });
 
-    if (data.fullName) updateData.fullName = data.fullName;
-    if (data.username) updateData.username = data.username;
-    if (data.email) updateData.email = data.email;
-    if (data.phone) updateData.phone = data.phone;
-    if (data.gender) updateData.gender = data.gender;
-    if (data.role) updateData.role = data.role;
-    if (data.about !== undefined) updateData.about = data.about;
-    if (data.address !== undefined) updateData.address = data.address;
-    if (data.parentContact !== undefined) updateData.parentContact = data.parentContact;
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty("token");
+      expect(res.body.data.user).toHaveProperty("username", testUser.username);
+      expect(res.body.data.user).not.toHaveProperty("password");
 
-    if (data.password) {
-      updateData.password = await bcryptjs.hash(data.password, 10);
-    }
+      authToken = res.body.data.token; // save for protected route tests
+    });
 
-    if (data.profileImage) {
-      updateData.profileImage = data.profileImage;
-    }
+    test("should return 401 for wrong password", async () => {
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({ username: testUser.username, password: "WrongPass!" });
 
-    if (data.classId !== undefined) {
-      updateData.classId = data.classId || null;
-    }
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/Invalid credentials/i);
+    });
 
-    if (data.sectionId !== undefined) {
-      updateData.sectionId = data.sectionId || null;
-    }
+    test("should return 404 for non-existent username", async () => {
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({ username: "ghostuser", password: "any" });
 
-    const user = await userRepository.updateUserProfile(userId, updateData);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/User not found/i);
+    });
 
-    return user;
-  }
+    test("should return 400 for missing fields", async () => {
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({});
 
-  async deleteUser(userId: string) {
-    const user = await userRepository.deleteUser(userId);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
-    return user;
-  }
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
 
-  async updateUserProfileImage(userId: string, imageUrl: string) {
-    const user = await userRepository.updateProfileImage(userId, imageUrl);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
-    return user;
-  }
-}
+  // ─── GET /api/auth/profile ─────────────────────────────────────────────────
+  describe("GET /api/auth/profile", () => {
+    test("should return profile for authenticated user", async () => {
+      const res = await request(app)
+        .get("/api/auth/profile")
+        .set("Authorization", `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty("username", testUser.username);
+      expect(res.body.data).toHaveProperty("email", testUser.email);
+      expect(res.body.data).not.toHaveProperty("password");
+    });
+
+    test("should return 401 without token", async () => {
+      const res = await request(app).get("/api/auth/profile");
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+
+    test("should return 401 with invalid token", async () => {
+      const res = await request(app)
+        .get("/api/auth/profile")
+        .set("Authorization", "Bearer invalidtoken123");
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  // ─── PUT /api/auth/profile ─────────────────────────────────────────────────
+  describe("PUT /api/auth/profile", () => {
+    test("should update profile successfully", async () => {
+      const res = await request(app)
+        .put("/api/auth/profile")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ fullName: "Updated Integration User", about: "Test bio" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.fullName).toBe("Updated Integration User");
+      expect(res.body.data.about).toBe("Test bio");
+    });
+
+    test("should return 401 without token", async () => {
+      const res = await request(app)
+        .put("/api/auth/profile")
+        .send({ fullName: "No Auth" });
+
+      expect(res.status).toBe(401);
+    });
+  });
+
+  // ─── POST /api/auth/forgot-password ───────────────────────────────────────
+  describe("POST /api/auth/forgot-password", () => {
+    test("should send reset code for registered email", async () => {
+      const res = await request(app)
+        .post("/api/auth/forgot-password")
+        .send({ email: testUser.email });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toMatch(/Verification code sent/i);
+    });
+
+    test("should return 404 for unregistered email", async () => {
+      const res = await request(app)
+        .post("/api/auth/forgot-password")
+        .send({ email: "ghost@nowhere.com" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/hasn't been registered/i);
+    });
+
+    test("should return 400 for missing email", async () => {
+      const res = await request(app)
+        .post("/api/auth/forgot-password")
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  // ─── POST /api/auth/verify-code ───────────────────────────────────────────
+  describe("POST /api/auth/verify-code", () => {
+    test("should verify valid code", async () => {
+      // Manually set a known code
+      await UserModel.findOneAndUpdate(
+        { email: testUser.email },
+        {
+          resetPasswordCode: "112233",
+          resetPasswordExpires: new Date(Date.now() + 15 * 60 * 1000),
+        }
+      );
+
+      const res = await request(app)
+        .post("/api/auth/verify-code")
+        .send({ email: testUser.email, code: "112233" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toMatch(/Code verified/i);
+    });
+
+    test("should return 400 for wrong code", async () => {
+      const res = await request(app)
+        .post("/api/auth/verify-code")
+        .send({ email: testUser.email, code: "000000" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    test("should return 400 for missing email or code", async () => {
+      const res = await request(app)
+        .post("/api/auth/verify-code")
+        .send({ email: testUser.email }); // missing code
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  // ─── POST /api/auth/reset-password ────────────────────────────────────────
+  describe("POST /api/auth/reset-password", () => {
+    test("should reset password with valid code", async () => {
+      // Set fresh code
+      await UserModel.findOneAndUpdate(
+        { email: testUser.email },
+        {
+          resetPasswordCode: "445566",
+          resetPasswordExpires: new Date(Date.now() + 15 * 60 * 1000),
+        }
+      );
+
+      const res = await request(app)
+        .post("/api/auth/reset-password")
+        .send({
+          email: testUser.email,
+          code: "445566",
+          newPassword: "NewPassword789!",
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toMatch(/Password reset successfully/i);
+    });
+
+    test("should be able to login with new password after reset", async () => {
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({ username: testUser.username, password: "NewPassword789!" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    test("should return 400 for invalid reset code", async () => {
+      const res = await request(app)
+        .post("/api/auth/reset-password")
+        .send({
+          email: testUser.email,
+          code: "badcode",
+          newPassword: "AnyPass123!",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
+});
