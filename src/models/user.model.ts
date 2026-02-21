@@ -14,13 +14,12 @@ export interface IUser extends Document {
   about: string;
   address: string;
   parentContact: string;
-  // For students: single values
-  // For teachers: arrays stored as strings (e.g., '["11","12"]')
   classId: string | null;
   sectionId: string | null;
   resetPasswordCode: string | null;
   resetPasswordExpires: Date | null;
-  fcmTokens: string[]; // ✅ FCM: stores push notification tokens (one per device)
+  passwordChangedAt: Date | null;
+  fcmTokens: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +47,7 @@ const UserSchema: Schema<IUser> = new Schema(
 
     resetPasswordCode: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
+    passwordChangedAt: { type: Date, default: null }, // ✅ Used to invalidate tokens on other devices
 
     // ✅ FCM: array so one user can have tokens on multiple devices
     fcmTokens: { type: [String], default: [] },

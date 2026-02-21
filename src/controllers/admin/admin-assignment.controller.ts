@@ -6,7 +6,6 @@ import { getFileType, deleteAssignmentFiles } from "../../middlewares/assignment
 const adminAssignmentService = new AdminAssignmentService();
 
 export class AdminAssignmentController {
-  // POST /api/admin/assignments
   async createAssignment(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
@@ -20,7 +19,6 @@ export class AdminAssignmentController {
         fileSize: file.size,
       }));
 
-      // ✅ Parse assignedTeacherIds from JSON string in FormData
       let assignedTeacherIds: string[] = [];
       try {
         if (req.body.assignedTeacherIds) {
@@ -34,7 +32,7 @@ export class AdminAssignmentController {
       const requestData = {
         ...req.body,
         totalMarks:         Number(req.body.totalMarks),
-        assignedTeacherIds, // ✅ use parsed array
+        assignedTeacherIds, 
         attachments:        attachments.length > 0 ? attachments : undefined,
       };
 
@@ -62,7 +60,6 @@ export class AdminAssignmentController {
     }
   }
 
-  // GET /api/admin/assignments
   async getAllAssignments(req: Request, res: Response) {
     try {
       const assignments = await adminAssignmentService.getAllAssignments();
@@ -72,7 +69,6 @@ export class AdminAssignmentController {
     }
   }
 
-  // GET /api/admin/assignments/:id
   async getAssignmentById(req: Request, res: Response) {
     try {
       const assignment = await adminAssignmentService.getAssignmentById(req.params.id);
@@ -82,7 +78,6 @@ export class AdminAssignmentController {
     }
   }
 
-  // GET /api/admin/assignments/class/:classId/section/:sectionId
   async getAssignmentsByClassAndSection(req: Request, res: Response) {
     try {
       const { classId, sectionId } = req.params;
@@ -93,7 +88,6 @@ export class AdminAssignmentController {
     }
   }
 
-  // GET /api/admin/assignments/subject/:subject
   async getAssignmentsBySubject(req: Request, res: Response) {
     try {
       const assignments = await adminAssignmentService.getAssignmentsBySubject(req.params.subject);
@@ -103,7 +97,6 @@ export class AdminAssignmentController {
     }
   }
 
-  // PUT /api/admin/assignments/:id
   async updateAssignment(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -122,7 +115,6 @@ export class AdminAssignmentController {
         if (req.body.existingAttachments) existingAttachments = JSON.parse(req.body.existingAttachments);
       } catch {}
 
-      // ✅ Parse assignedTeacherIds from JSON string
       let assignedTeacherIds: string[] | undefined;
       try {
         if (req.body.assignedTeacherIds) {
@@ -153,7 +145,6 @@ export class AdminAssignmentController {
 
       const assignment = await adminAssignmentService.updateAssignment(id, parsed.data);
 
-      // Delete removed files
       const removedFiles = (existingAssignment.attachments || []).filter(
         (old: any) => !existingAttachments.some((kept: any) => kept.fileUrl === old.fileUrl)
       );
@@ -167,7 +158,6 @@ export class AdminAssignmentController {
     }
   }
 
-  // DELETE /api/admin/assignments/:id
   async deleteAssignment(req: Request, res: Response) {
     try {
       const assignment = await adminAssignmentService.getAssignmentById(req.params.id);

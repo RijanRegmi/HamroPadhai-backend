@@ -1,12 +1,10 @@
 import { Request, Response } from "express";
-import { UserModel } from "../models/user.model"; // ✅ adjust path if your model is elsewhere
+import { UserModel } from "../models/user.model";
 
 export class FCMTokenController {
-  // POST /api/student/fcm-token
-  // Flutter calls this on login and on token refresh
   async saveToken(req: Request, res: Response) {
     try {
-      const { fcmToken } = req.body;
+      const { fcmToken, oldFcmToken } = req.body; // Flutter sends old token if it has one
       const userId = (req as any).user?.id;
 
       if (!userId) {
@@ -17,9 +15,17 @@ export class FCMTokenController {
         return res.status(400).json({ success: false, message: "Invalid FCM token" });
       }
 
-      // $addToSet prevents storing duplicate tokens for the same device
+      const newToken = fcmToken.trim();
+
+      if (oldFcmToken && typeof oldFcmToken === "string" && oldFcmToken.trim() !== newToken) {
+        // Replace old token with new one atomically
+        await UserModel.findByIdAndUpdate(userId, {
+          $pull: { fcmTokens: oldFcmToken.trim() },
+        });
+      }
+
       await UserModel.findByIdAndUpdate(userId, {
-        $addToSet: { fcmTokens: fcmToken.trim() },
+        $addToSet: { fcmTokens: newToken },
       });
 
       console.log(`✅ FCM token saved for user ${userId}`);
@@ -30,8 +36,6 @@ export class FCMTokenController {
     }
   }
 
-  // DELETE /api/student/fcm-token
-  // Flutter calls this on logout so the user stops getting notifications
   async removeToken(req: Request, res: Response) {
     try {
       const { fcmToken } = req.body;

@@ -19,7 +19,6 @@ export class AuthController {
           })),
         });
       }
-
       const user = await userService.register(parsed.data);
       return res.status(201).json({
         success: true,
@@ -59,9 +58,7 @@ export class AuthController {
           })),
         });
       }
-
       const result = await userService.login(parsed.data);
-      
       return res.status(200).json({
         success: true,
         message: "Login successful",
@@ -93,23 +90,13 @@ export class AuthController {
   async getProfile(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-
       if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized",
-        });
+        return res.status(401).json({ success: false, message: "Unauthorized" });
       }
-
       const user = await userService.getUserById(userId);
-
       if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User not found",
-        });
+        return res.status(404).json({ success: false, message: "User not found" });
       }
-
       return res.status(200).json({
         success: true,
         data: {
@@ -137,37 +124,24 @@ export class AuthController {
   async uploadProfileImage(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-
       if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized",
-        });
+        return res.status(401).json({ success: false, message: "Unauthorized" });
       }
-
       if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: "No file uploaded",
-        });
+        return res.status(400).json({ success: false, message: "No file uploaded" });
       }
-
       console.log("File uploaded successfully:", {
         filename: req.file.filename,
         mimetype: req.file.mimetype,
         size: req.file.size,
         path: req.file.path,
       });
-
       const imageUrl = `/uploads/profiles/${req.file.filename}`;
       const user = await userService.updateProfileImage(userId, imageUrl);
-
       return res.status(200).json({
         success: true,
         message: "Profile image updated successfully",
-        data: {
-          profileImage: user.profileImage,
-        },
+        data: { profileImage: user.profileImage },
       });
     } catch (error: any) {
       console.error("Error in uploadProfileImage:", error);
@@ -181,14 +155,9 @@ export class AuthController {
   async updateProfile(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-
       if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized",
-        });
+        return res.status(401).json({ success: false, message: "Unauthorized" });
       }
-
       const parsed = updateProfileDTO.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
@@ -200,9 +169,7 @@ export class AuthController {
           })),
         });
       }
-
       const user = await userService.updateProfile(userId, parsed.data);
-
       return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
@@ -233,21 +200,15 @@ export class AuthController {
     try {
       const { id } = req.params;
       const loggedInUserId = (req as any).user?.id;
-
       if (!loggedInUserId) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized",
-        });
+        return res.status(401).json({ success: false, message: "Unauthorized" });
       }
-
       if (loggedInUserId !== id) {
         return res.status(403).json({
           success: false,
           message: "Forbidden - You can only update your own profile",
         });
       }
-
       const parsed = updateProfileDTO.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
@@ -259,15 +220,11 @@ export class AuthController {
           })),
         });
       }
-
       const updateData: any = { ...parsed.data };
-
       if (req.file) {
         updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
       }
-
       const user = await userService.updateProfile(id, updateData);
-
       return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
@@ -294,7 +251,6 @@ export class AuthController {
     }
   }
 
-  // Forgot Password - Send Verification Code
   async forgotPassword(req: Request, res: Response) {
     try {
       const parsed = forgotPasswordDTO.safeParse(req.body);
@@ -308,13 +264,8 @@ export class AuthController {
           })),
         });
       }
-
       const result = await userService.sendPasswordResetCode(parsed.data);
-
-      return res.status(200).json({
-        success: true,
-        message: result.message,
-      });
+      return res.status(200).json({ success: true, message: result.message });
     } catch (error: any) {
       console.error("Error in forgotPassword:", error);
       return res.status(error.statusCode || 500).json({
@@ -324,27 +275,17 @@ export class AuthController {
     }
   }
 
-  // ============================================
-  // NEW METHOD: Verify Code
-  // ============================================
   async verifyCode(req: Request, res: Response) {
     try {
       const { email, code } = req.body;
-
       if (!email || !code) {
         return res.status(400).json({
           success: false,
           message: "Email and code are required",
         });
       }
-
-      // Verify the code through service
       await userService.verifyResetCode(email, code);
-
-      return res.status(200).json({
-        success: true,
-        message: "Code verified successfully",
-      });
+      return res.status(200).json({ success: true, message: "Code verified successfully" });
     } catch (error: any) {
       console.error("Error in verifyCode:", error);
       return res.status(error.statusCode || 400).json({
@@ -353,9 +294,7 @@ export class AuthController {
       });
     }
   }
-  // ============================================
 
-  // Reset Password with Verification Code
   async resetPassword(req: Request, res: Response) {
     try {
       const parsed = resetPasswordDTO.safeParse(req.body);
@@ -369,18 +308,47 @@ export class AuthController {
           })),
         });
       }
-
       const result = await userService.resetPassword(parsed.data);
-
-      return res.status(200).json({
-        success: true,
-        message: result.message,
-      });
+      return res.status(200).json({ success: true, message: result.message });
     } catch (error: any) {
       console.error("Error in resetPassword:", error);
       return res.status(error.statusCode || 500).json({
         success: false,
         message: error.message || "Failed to reset password",
+      });
+    }
+  }
+
+  // ✅ NEW: Change Password (authenticated users only)
+  async changePassword(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+      }
+      const { oldPassword, newPassword } = req.body;
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Old and new password are required",
+        });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: "New password must be at least 6 characters",
+        });
+      }
+      await userService.changePassword(userId, oldPassword, newPassword);
+      return res.status(200).json({
+        success: true,
+        message: "Password changed successfully",
+      });
+    } catch (error: any) {
+      console.error("Error in changePassword:", error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Failed to change password",
       });
     }
   }

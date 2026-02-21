@@ -39,7 +39,7 @@ router.post("/login", controller.login.bind(controller));
 
 // Password Reset Routes
 router.post("/forgot-password", controller.forgotPassword.bind(controller));
-router.post("/verify-code", controller.verifyCode.bind(controller)); // NEW: Add this line
+router.post("/verify-code", controller.verifyCode.bind(controller));
 router.post("/reset-password", controller.resetPassword.bind(controller));
 
 // Protected routes (require authentication)
@@ -60,5 +60,7 @@ router.put(
   handleMulterUpload,
   controller.updateUserById.bind(controller)
 );
+
+router.post("/change-password", authMiddleware, controller.changePassword.bind(controller));
 
 export default router;

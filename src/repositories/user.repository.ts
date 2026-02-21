@@ -78,7 +78,7 @@ export class UserRepository {
     return UserModel.findOne({
       email,
       resetPasswordCode: code,
-      resetPasswordExpires: { $gt: new Date() } // Code must not be expired
+      resetPasswordExpires: { $gt: new Date() }
     });
   }
 
@@ -101,7 +101,16 @@ export class UserRepository {
     );
   }
 
-  // NEW: Teacher-specific query methods
+  // ✅ NEW: Sets passwordChangedAt to invalidate all existing tokens on other devices
+  async updatePasswordChangedAt(userId: string, date: Date): Promise<IUser | null> {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      { passwordChangedAt: date },
+      { new: true }
+    );
+  }
+
+  // Teacher-specific query methods
   async getUsersByRole(role: "user" | "admin" | "teacher"): Promise<IUser[]> {
     return UserModel.find({ role }).select("-password");
   }
@@ -124,11 +133,11 @@ export class UserRepository {
   async getUsersBySection(sectionId: string): Promise<IUser[]> {
     return UserModel.find({ sectionId }).select("-password");
   }
-  
+
   async getUsersByClassAndSection(classId: string, sectionId: string) {
-  return UserModel.find({
-    classId: classId,
-    sectionId: sectionId,
-  }).select("-password");
-}
+    return UserModel.find({
+      classId: classId,
+      sectionId: sectionId,
+    }).select("-password");
+  }
 }
