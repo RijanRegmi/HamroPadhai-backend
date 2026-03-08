@@ -5,7 +5,7 @@ import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import path from "path";
 
-import { initFCM } from "./services/fcm.service"; // ✅ NEW
+import { initFCM } from "./services/fcm.service"; 
 
 import authRoutes                from "./routes/auth.route";
 import adminRoutes               from "./routes/admin/admin.route";

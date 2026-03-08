@@ -4,7 +4,7 @@ import { UserModel } from "../models/user.model";
 export class FCMTokenController {
   async saveToken(req: Request, res: Response) {
     try {
-      const { fcmToken, oldFcmToken } = req.body; // Flutter sends old token if it has one
+      const { fcmToken, oldFcmToken } = req.body; 
       const userId = (req as any).user?.id;
 
       if (!userId) {
@@ -18,7 +18,7 @@ export class FCMTokenController {
       const newToken = fcmToken.trim();
 
       if (oldFcmToken && typeof oldFcmToken === "string" && oldFcmToken.trim() !== newToken) {
-        // Replace old token with new one atomically
+        
         await UserModel.findByIdAndUpdate(userId, {
           $pull: { fcmTokens: oldFcmToken.trim() },
         });
